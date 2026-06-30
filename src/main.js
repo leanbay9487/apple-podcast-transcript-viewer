@@ -1,5 +1,3 @@
-import './style.css';
-
 // Handle mobile apps
 if ('ontouchstart' in window || navigator.maxTouchPoints) {
   document.querySelector('.explanation').innerHTML = `
