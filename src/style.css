@@ -535,4 +535,12 @@ body.highlight #drop-overlay {
   margin-bottom: 8px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--card-border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.group-checkbox {
+  margin: 0;
+  font-size: inherit;
 }

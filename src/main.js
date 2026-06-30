@@ -57,6 +57,19 @@ function updateSelectionUI() {
   const total = Object.keys(currentTranscripts).length;
   selectAllCheckbox.checked = count === total && total > 0;
   selectAllCheckbox.indeterminate = count > 0 && count < total;
+
+  // Update group checkboxes if they exist
+  document.querySelectorAll('.group-header').forEach(header => {
+    const ids = JSON.parse(header.dataset.ids || "[]");
+    if (ids.length > 0) {
+      const selectedInGroup = ids.filter(id => selectedPodcastIds.has(id)).length;
+      const checkbox = header.querySelector('input[type="checkbox"]');
+      if (checkbox) {
+        checkbox.checked = selectedInGroup === ids.length;
+        checkbox.indeterminate = selectedInGroup > 0 && selectedInGroup < ids.length;
+      }
+    }
+  });
 }
 
 selectAllCheckbox.addEventListener('change', (e) => {
@@ -223,8 +236,39 @@ function renderPodcasts() {
     for (const author of sortedAuthors) {
       const header = document.createElement('div');
       header.className = 'group-header';
-      header.textContent = author;
+      header.dataset.ids = JSON.stringify(groups[author].map(g => g[0]));
+      header.innerHTML = `
+        <label class="checkbox-label group-checkbox">
+          <input type="checkbox" />
+          <span class="custom-checkbox"></span>
+        </label>
+        <span>${author}</span>
+      `;
       podcastsContainer.appendChild(header);
+      
+      const groupCheckboxInput = header.querySelector('input[type="checkbox"]');
+      groupCheckboxInput.addEventListener('change', (e) => {
+        const isChecked = e.target.checked;
+        const ids = JSON.parse(header.dataset.ids);
+        
+        ids.forEach(podcastId => {
+          const label = document.querySelector(`.podcast-checkbox[data-id="${podcastId}"]`);
+          if (label) {
+            const card = label.closest('.podcast');
+            const checkbox = card.querySelector('input[type="checkbox"]');
+            if (isChecked) {
+              selectedPodcastIds.add(podcastId);
+              card.classList.add('selected');
+              checkbox.checked = true;
+            } else {
+              selectedPodcastIds.delete(podcastId);
+              card.classList.remove('selected');
+              checkbox.checked = false;
+            }
+          }
+        });
+        updateSelectionUI();
+      });
       
       for (const [podcastId, transcript] of groups[author]) {
         podcastsContainer.appendChild(createPodcastCard(podcastId, transcript));
