@@ -22,6 +22,99 @@ if (copyBtn) {
 const dropZone = document.body;
 const podcastsContainer = document.getElementById('podcasts');
 
+// Selection state
+const actionToolbar = document.getElementById('action-toolbar');
+const selectAllCheckbox = document.getElementById('select-all');
+const selectedCountText = document.getElementById('selected-count');
+const copySelectedBtn = document.getElementById('copy-selected');
+const downloadSelectedBtn = document.getElementById('download-selected');
+let selectedPodcastIds = new Set();
+let currentTranscripts = {};
+
+function updateSelectionUI() {
+  const count = selectedPodcastIds.size;
+  selectedCountText.textContent = `${count} selected`;
+  const hasSelection = count > 0;
+  copySelectedBtn.disabled = !hasSelection;
+  downloadSelectedBtn.disabled = !hasSelection;
+  
+  const total = Object.keys(currentTranscripts).length;
+  selectAllCheckbox.checked = count === total && total > 0;
+  selectAllCheckbox.indeterminate = count > 0 && count < total;
+}
+
+selectAllCheckbox.addEventListener('change', (e) => {
+  const isChecked = e.target.checked;
+  selectedPodcastIds.clear();
+  
+  document.querySelectorAll('.podcast').forEach(card => {
+    const checkbox = card.querySelector('input[type="checkbox"]');
+    const label = card.querySelector('.podcast-checkbox');
+    const id = label.getAttribute('data-id');
+    
+    if (isChecked) {
+      selectedPodcastIds.add(id);
+      card.classList.add('selected');
+      checkbox.checked = true;
+    } else {
+      card.classList.remove('selected');
+      checkbox.checked = false;
+    }
+  });
+  
+  updateSelectionUI();
+});
+
+function getSelectedText() {
+  let text = '';
+  for (const id of selectedPodcastIds) {
+    const transcript = currentTranscripts[id];
+    if (transcript) {
+      text += `=== ${transcript.title} ===\n`;
+      text += `Author: ${transcript.author}\n`;
+      text += `Date: ${formatDate(transcript.time)}\n\n`;
+      
+      text += transcript.transcripts.map(s => {
+        return s.speaker ? `${s.speaker}: ${s.sentences}` : s.sentences;
+      }).join('\n\n');
+      
+      text += '\n\n';
+    }
+  }
+  return text;
+}
+
+copySelectedBtn.addEventListener('click', async () => {
+  const text = getSelectedText();
+  if (text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      const originalHtml = copySelectedBtn.innerHTML;
+      copySelectedBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check"><path d="M20 6 9 17l-5-5"/></svg> Copied';
+      setTimeout(() => {
+        copySelectedBtn.innerHTML = originalHtml;
+      }, 2000);
+    } catch (err) {
+      alert("Failed to copy text. Please try downloading instead.");
+    }
+  }
+});
+
+downloadSelectedBtn.addEventListener('click', () => {
+  const text = getSelectedText();
+  if (text) {
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'podcast_transcripts.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+});
+
 // Initialize sql.js
 let SQL;
 async function init() {
@@ -59,6 +152,9 @@ dropZone.addEventListener('drop', async (event) => {
   
   // Clear the current podcast list
   podcastsContainer.innerHTML = '';
+  selectedPodcastIds.clear();
+  currentTranscripts = {};
+  actionToolbar.classList.add('hidden');
 
   try {
     const items = event.dataTransfer.items;
@@ -169,10 +265,11 @@ dropZone.addEventListener('drop', async (event) => {
     transcripts = Object.fromEntries(Object.entries(transcripts)
       .sort(([, a], [, b]) => new Date(b.lastModified) - new Date(a.lastModified)));
 
-    // Iterate over it
-    const transcriptArray = Object.values(transcripts);
+    currentTranscripts = transcripts;
+    const entriesArray = Object.entries(transcripts);
     
-    if (transcriptArray.length === 0) {
+    if (entriesArray.length === 0) {
+      actionToolbar.classList.add('hidden');
       const podcastDiv = document.createElement("div");
       podcastDiv.className = "noPodcasts";
       podcastDiv.innerHTML = `
@@ -181,7 +278,8 @@ dropZone.addEventListener('drop', async (event) => {
       `;
       podcastsContainer.appendChild(podcastDiv);
     } else {
-      for (const transcript of transcriptArray) {
+      actionToolbar.classList.remove('hidden');
+      for (const [podcastId, transcript] of entriesArray) {
         const podcastDiv = document.createElement("div");
         podcastDiv.className = "podcast";
         let description = transcript.description;
@@ -189,17 +287,45 @@ dropZone.addEventListener('drop', async (event) => {
           description = transcript.transcripts.map(s => s.sentences).join(" ");
         }
         podcastDiv.innerHTML = `
+        <label class="checkbox-label podcast-checkbox" data-id="${podcastId}">
+          <input type="checkbox" />
+          <span class="custom-checkbox"></span>
+        </label>
         <div class="info">${formatDate(transcript.time)} · ${formatTime(transcript.duration)}</div>
         <div class="title">${transcript.title}</div>
         <span class="author">${transcript.author}</span>
         <div class="description">${description}</div>
         `;
 
-        podcastDiv.onclick = () => openTranscriptPopup(transcript.transcripts, transcript.title);
+        // Handle checkbox click
+        const checkboxLabel = podcastDiv.querySelector('.podcast-checkbox');
+        const checkboxInput = podcastDiv.querySelector('input[type="checkbox"]');
+        checkboxLabel.addEventListener('click', (e) => {
+          e.stopPropagation();
+        });
+        checkboxInput.addEventListener('change', (e) => {
+          if (e.target.checked) {
+            selectedPodcastIds.add(podcastId);
+            podcastDiv.classList.add('selected');
+          } else {
+            selectedPodcastIds.delete(podcastId);
+            podcastDiv.classList.remove('selected');
+          }
+          updateSelectionUI();
+        });
+
+        // Open modal on card click
+        podcastDiv.addEventListener('click', (e) => {
+          if (!checkboxLabel.contains(e.target)) {
+            openTranscriptPopup(transcript.transcripts, transcript.title);
+          }
+        });
 
         podcastsContainer.appendChild(podcastDiv);
       }
     }
+    
+    updateSelectionUI();
   } catch (e) {
     const podcastDiv = document.createElement("div");
     podcastDiv.className = "noPodcasts";
