@@ -489,3 +489,50 @@ body.highlight #drop-overlay {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent), 0 12px 24px rgba(0, 0, 0, 0.3);
 }
+
+.toolbar-middle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dropdown-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%23ffffff" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 16px;
+  padding-right: 32px;
+}
+
+.dropdown-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.dropdown-btn option {
+  background-color: var(--card-bg);
+  color: var(--text-primary);
+}
+
+.group-header {
+  grid-column: 1 / -1;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-top: 24px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--card-border);
+}

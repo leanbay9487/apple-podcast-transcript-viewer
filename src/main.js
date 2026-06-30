@@ -29,6 +29,24 @@ const downloadSelectedBtn = document.getElementById('download-selected');
 let selectedPodcastIds = new Set();
 let currentTranscripts = {};
 
+// Sort & Group state
+const groupBySelect = document.getElementById('group-by');
+const sortBySelect = document.getElementById('sort-by');
+let currentSort = 'date-desc';
+let currentGroup = 'none';
+
+if (groupBySelect && sortBySelect) {
+  groupBySelect.addEventListener('change', (e) => {
+    currentGroup = e.target.value;
+    renderPodcasts();
+  });
+  
+  sortBySelect.addEventListener('change', (e) => {
+    currentSort = e.target.value;
+    renderPodcasts();
+  });
+}
+
 function updateSelectionUI() {
   const count = selectedPodcastIds.size;
   selectedCountText.textContent = `${count} selected`;
@@ -112,6 +130,114 @@ downloadSelectedBtn.addEventListener('click', () => {
     URL.revokeObjectURL(url);
   }
 });
+
+function renderPodcasts() {
+  podcastsContainer.innerHTML = '';
+  
+  if (Object.keys(currentTranscripts).length === 0) {
+    actionToolbar.classList.add('hidden');
+    const podcastDiv = document.createElement("div");
+    podcastDiv.className = "noPodcasts";
+    podcastDiv.innerHTML = `
+    <div class="title" style="margin-bottom: 12px; color: var(--accent);">No podcast transcripts found</div>
+    <p style="color: var(--text-secondary); font-size: 0.95rem;">Make sure you followed step 1 to locally cache the transcript data so it can be read.</p>
+    `;
+    podcastsContainer.appendChild(podcastDiv);
+    updateSelectionUI();
+    return;
+  }
+  
+  actionToolbar.classList.remove('hidden');
+  
+  // Convert to array and sort
+  let entriesArray = Object.entries(currentTranscripts);
+  entriesArray.sort((a, b) => {
+    let timeA = a[1].time > 0 ? a[1].time : (new Date(a[1].lastModified).getTime() / 1000);
+    let timeB = b[1].time > 0 ? b[1].time : (new Date(b[1].lastModified).getTime() / 1000);
+    
+    if (currentSort === 'date-desc') {
+      return timeB - timeA;
+    } else {
+      return timeA - timeB;
+    }
+  });
+
+  // Function to create a podcast card
+  const createPodcastCard = (podcastId, transcript) => {
+    const podcastDiv = document.createElement("div");
+    podcastDiv.className = "podcast";
+    if (selectedPodcastIds.has(podcastId)) {
+      podcastDiv.classList.add('selected');
+    }
+    
+    let description = transcript.description;
+    if (!description || description.trim() === '') {
+      description = transcript.transcripts.map(s => s.sentences).join(" ");
+    }
+    podcastDiv.innerHTML = `
+    <label class="checkbox-label podcast-checkbox" data-id="${podcastId}">
+      <input type="checkbox" ${selectedPodcastIds.has(podcastId) ? 'checked' : ''} />
+      <span class="custom-checkbox"></span>
+    </label>
+    <div class="info">${formatDate(transcript.time)} · ${formatTime(transcript.duration)}</div>
+    <div class="title">${transcript.title}</div>
+    <span class="author">${transcript.author}</span>
+    <div class="description">${description}</div>
+    `;
+
+    const checkboxLabel = podcastDiv.querySelector('.podcast-checkbox');
+    const checkboxInput = podcastDiv.querySelector('input[type="checkbox"]');
+    checkboxLabel.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+    checkboxInput.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        selectedPodcastIds.add(podcastId);
+        podcastDiv.classList.add('selected');
+      } else {
+        selectedPodcastIds.delete(podcastId);
+        podcastDiv.classList.remove('selected');
+      }
+      updateSelectionUI();
+    });
+
+    podcastDiv.addEventListener('click', (e) => {
+      if (!checkboxLabel.contains(e.target)) {
+        openTranscriptPopup(transcript.transcripts, transcript.title);
+      }
+    });
+    
+    return podcastDiv;
+  };
+
+  // Grouping logic
+  if (currentGroup === 'show') {
+    const groups = {};
+    for (const [podcastId, transcript] of entriesArray) {
+      const author = transcript.author || 'Unknown Show';
+      if (!groups[author]) groups[author] = [];
+      groups[author].push([podcastId, transcript]);
+    }
+    
+    const sortedAuthors = Object.keys(groups).sort();
+    for (const author of sortedAuthors) {
+      const header = document.createElement('div');
+      header.className = 'group-header';
+      header.textContent = author;
+      podcastsContainer.appendChild(header);
+      
+      for (const [podcastId, transcript] of groups[author]) {
+        podcastsContainer.appendChild(createPodcastCard(podcastId, transcript));
+      }
+    }
+  } else {
+    for (const [podcastId, transcript] of entriesArray) {
+      podcastsContainer.appendChild(createPodcastCard(podcastId, transcript));
+    }
+  }
+  
+  updateSelectionUI();
+}
 
 // Initialize sql.js
 let SQL;
@@ -264,66 +390,8 @@ dropZone.addEventListener('drop', async (event) => {
       .sort(([, a], [, b]) => new Date(b.lastModified) - new Date(a.lastModified)));
 
     currentTranscripts = transcripts;
-    const entriesArray = Object.entries(transcripts);
+    renderPodcasts();
     
-    if (entriesArray.length === 0) {
-      actionToolbar.classList.add('hidden');
-      const podcastDiv = document.createElement("div");
-      podcastDiv.className = "noPodcasts";
-      podcastDiv.innerHTML = `
-      <div class="title" style="margin-bottom: 12px; color: var(--accent);">No podcast transcripts found</div>
-      <p style="color: var(--text-secondary); font-size: 0.95rem;">Make sure you followed step 1 to locally cache the transcript data so it can be read.</p>
-      `;
-      podcastsContainer.appendChild(podcastDiv);
-    } else {
-      actionToolbar.classList.remove('hidden');
-      for (const [podcastId, transcript] of entriesArray) {
-        const podcastDiv = document.createElement("div");
-        podcastDiv.className = "podcast";
-        let description = transcript.description;
-        if (!description || description.trim() === '') {
-          description = transcript.transcripts.map(s => s.sentences).join(" ");
-        }
-        podcastDiv.innerHTML = `
-        <label class="checkbox-label podcast-checkbox" data-id="${podcastId}">
-          <input type="checkbox" />
-          <span class="custom-checkbox"></span>
-        </label>
-        <div class="info">${formatDate(transcript.time)} · ${formatTime(transcript.duration)}</div>
-        <div class="title">${transcript.title}</div>
-        <span class="author">${transcript.author}</span>
-        <div class="description">${description}</div>
-        `;
-
-        // Handle checkbox click
-        const checkboxLabel = podcastDiv.querySelector('.podcast-checkbox');
-        const checkboxInput = podcastDiv.querySelector('input[type="checkbox"]');
-        checkboxLabel.addEventListener('click', (e) => {
-          e.stopPropagation();
-        });
-        checkboxInput.addEventListener('change', (e) => {
-          if (e.target.checked) {
-            selectedPodcastIds.add(podcastId);
-            podcastDiv.classList.add('selected');
-          } else {
-            selectedPodcastIds.delete(podcastId);
-            podcastDiv.classList.remove('selected');
-          }
-          updateSelectionUI();
-        });
-
-        // Open modal on card click
-        podcastDiv.addEventListener('click', (e) => {
-          if (!checkboxLabel.contains(e.target)) {
-            openTranscriptPopup(transcript.transcripts, transcript.title);
-          }
-        });
-
-        podcastsContainer.appendChild(podcastDiv);
-      }
-    }
-    
-    updateSelectionUI();
   } catch (e) {
     const podcastDiv = document.createElement("div");
     podcastDiv.className = "noPodcasts";
