@@ -6,8 +6,9 @@ A modern, responsive, and beautiful web application that securely extracts and d
 
 - **Fully Local Processing**: Extracts and processes SQLite databases and TTML transcripts completely in your browser. No files are uploaded to any server.
 - **Premium Design**: Features a beautiful glassmorphism aesthetic, deep gradients, and smooth micro-animations.
+- **Bulk Extraction**: Select multiple episodes or entire shows, and easily download them as a single `.txt` file or copy them straight to your clipboard.
+- **Powerful Organization**: Sort transcripts by publish date, or group them cleanly by the Show they belong to.
 - **Drag and Drop Interface**: Easily drag your Apple Podcasts data folder right into the browser to instantly view all cached transcripts.
-- **Responsive Layout**: Designed to look great on large desktop monitors.
 
 ## How it Works 🛠️
 
@@ -20,35 +21,32 @@ The Apple Podcasts app on macOS stores podcast metadata and TTML transcripts loc
    ```text
    ~/Library/Group Containers/243LU875E5.groups.com.apple.podcasts
    ```
-3. Open the [Apple Podcast Transcript Viewer](https://your-username.github.io/apple-podcast-transcript-viewer) (once deployed) or run it locally.
+3. Open the application in your browser.
 4. Drag and drop all the contents of that folder into the web application.
 
 ## Local Development 💻
 
-This project is built with Vanilla HTML/JS/CSS and bundled with [Vite](https://vitejs.dev/).
+This project is built purely with Vanilla HTML, JS, and CSS. There are no heavy frameworks or build steps required.
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/apple-podcast-transcript-viewer.git
+   git clone https://github.com/leanbay9487/apple-podcast-transcript-viewer.git
    cd apple-podcast-transcript-viewer
    ```
 
-2. Install dependencies:
+2. Start a local Python server (available by default on Mac/Conda):
    ```bash
-   npm install
+   python3 -m http.server 5173
    ```
 
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
+3. Open `http://localhost:5173` in your browser.
 
 ## Technologies Used 🏗️
 
-- Vanilla HTML, CSS, JavaScript
-- [Vite](https://vitejs.dev/)
+- Vanilla HTML, CSS, JavaScript (ES6 Modules)
+- Python 3 (Local Development Server)
 - [sql.js](https://sql.js.org/) (for browser-based SQLite parsing)
-- [Lucide Icons](https://lucide.dev/) (inline SVGs)
+- HTML5 Drag and Drop & File System APIs
 
 ## License 📄
 
